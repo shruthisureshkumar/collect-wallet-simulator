@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Collect — Credit Wallet Ledger Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F1E7; --panel:#FFFFFF; --panel-2:#FBF8F1; --panel-3:#EFEADB;
+    --border:#DED6C2; --text:#2B2823; --muted:#6E6656; --muted-2:#948C79;
+    --mint:#1B8F62; --mint-dim: rgba(27,143,98,0.11);
+    --coral:#BD4530; --coral-dim: rgba(189,69,48,0.10);
+    --amber:#A2700A; --amber-dim: rgba(162,112,10,0.13);
+    --indigo:#4C5FB8; --indigo-dim: rgba(76,95,184,0.08);
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 15% -15%, rgba(255,255,255,0.75), transparent 60%),
+      var(--bg);
+    color:var(--text); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; min-height:100vh;
+    font-size:15px; line-height:1.5;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  ::selection{background:var(--mint-dim); color:var(--mint);}
+
+  .app{max-width:1360px;margin:0 auto;padding:26px 22px 70px;}
+
+  header.top{display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:20px; border-bottom:1px solid var(--border); margin-bottom:24px; flex-wrap:wrap;}
+  .brand{display:flex; align-items:center; gap:13px;}
+  .brand-mark{width:40px;height:40px;border-radius:9px; background:linear-gradient(155deg,var(--mint),#146B49); display:flex;align-items:center;justify-content:center; font-family:'Fraunces',serif; font-weight:700; color:#FFFFFF; font-size:19px; flex:none;}
+  .brand h1{font-family:'Fraunces',serif; font-weight:600; font-size:22px; margin:0; color:var(--text);}
+  .brand p{margin:3px 0 0; color:var(--muted); font-size:13.5px;}
+  #resetBtn{background:var(--panel-3); color:var(--text); border:1px solid var(--border); border-radius:7px; padding:9px 16px; font-size:13.5px; font-weight:600; cursor:pointer; transition:all .12s ease;}
+  #resetBtn:hover{border-color:var(--coral); color:var(--coral); background:var(--coral-dim);}
+
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; margin-bottom:16px; box-shadow:0 1px 2px rgba(43,40,35,0.03);}
+  .card.compact{margin-bottom:0;}
+  .card h2{font-family:'Fraunces',serif; font-size:16.5px; font-weight:600; margin:0 0 4px; color:var(--text);}
+  .card .sub{color:var(--muted); font-size:13.5px; margin:0 0 13px; line-height:1.6;}
+
+  /* reference table */
+  .ref-head{display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; margin-bottom:11px;}
+  .toggle-group{display:inline-flex; background:var(--panel-3); border:1px solid var(--border); border-radius:9px; padding:3px;}
+  .toggle-group button{background:transparent; border:none; color:var(--muted); padding:8px 15px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;}
+  .toggle-group button.active{background:var(--mint); color:#FFFFFF;}
+
+  table.ref{width:100%; border-collapse:collapse; font-size:13.5px;}
+  table.ref th{background:var(--panel-3); text-align:left; padding:9px 11px; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); font-weight:700; border-bottom:1px solid var(--border);}
+  table.ref td{padding:9px 11px; border-bottom:1px solid var(--border); font-family:'IBM Plex Mono',monospace; color:var(--text);}
+  table.ref td:first-child{font-family:'Inter',sans-serif; font-weight:600;}
+
+  .tl-current{display:flex; align-items:baseline; gap:13px; padding:14px 16px; background:var(--panel-2); border:1px solid var(--border); border-radius:9px;}
+  .tl-current-label{font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted-2); font-weight:700;}
+  .tl-current-value{font-family:'IBM Plex Mono',monospace; font-size:21px; font-weight:700; color:var(--mint);}
+  .tl-current-since{font-size:12.5px; color:var(--muted);}
+
+  /* forms */
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;}
+  @media(max-width:760px){.form-grid{grid-template-columns:1fr;}}
+  .field-row{display:flex; gap:9px; flex-wrap:wrap; align-items:flex-end;}
+  .field{display:flex; flex-direction:column; gap:5px; flex:1; min-width:130px;}
+  .field label{font-size:11.5px; color:var(--muted); font-weight:600;}
+  .field input, .field select{
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    padding:9px 10px; border-radius:6px; font-size:13.5px; font-family:'IBM Plex Mono',monospace; width:100%;
+  }
+  .field input:focus, .field select:focus{outline:none; border-color:var(--mint);}
+  .btn{background:var(--mint); color:#FFFFFF; border:none; border-radius:7px; padding:10px 16px; font-size:13.5px; font-weight:700; cursor:pointer; white-space:nowrap;}
+  .btn:hover{filter:brightness(1.1);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+  .btn.secondary{background:var(--panel-3); color:var(--text); border:1px solid var(--border);}
+
+  /* ledger table */
+  .ledger-wrap{overflow-x:auto;}
+  table.ledger{width:100%; border-collapse:collapse; font-size:13px; table-layout:auto;}
+  table.ledger th{
+    background:var(--panel-3); text-align:left; padding:9px 9px;
+    font-size:10.8px; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); font-weight:700;
+    border-bottom:1px solid var(--border); white-space:nowrap;
+  }
+  table.ledger td{padding:9px 9px; border-bottom:1px solid var(--border); font-family:'IBM Plex Mono',monospace; white-space:nowrap; color:var(--text);}
+  table.ledger td.event-cell{font-family:'Inter',sans-serif; white-space:normal; min-width:210px; line-height:1.45;}
+  table.ledger tr.row-initial td{color:var(--muted);}
+  table.ledger tr.row-timelineChange td{background:var(--indigo-dim);}
+  table.ledger tr.row-topup td{background:rgba(27,143,98,0.06);}
+  table.ledger tr.row-reminder td{background:var(--amber-dim);}
+  table.ledger tr.row-collection.gross td{background:rgba(27,143,98,0.09);}
+  table.ledger tr.row-collection.net td{background:rgba(189,69,48,0.08);}
+  .mode-pill{padding:4px 10px; border-radius:999px; font-size:11px; font-weight:800;}
+  .mode-pill.gross{background:var(--mint-dim); color:var(--mint);}
+  .mode-pill.net{background:var(--coral-dim); color:var(--coral);}
+  .alert-text{color:var(--amber); font-family:'Inter',sans-serif; white-space:normal; min-width:180px; font-weight:600;}
+  .dash{color:var(--muted-2);}
+  .row-del{background:none; border:1px solid transparent; color:var(--muted-2); cursor:pointer; font-size:13px; padding:4px 8px; border-radius:6px; font-family:'Inter',sans-serif;}
+  .row-del:hover{color:var(--coral); border-color:rgba(189,69,48,0.3); background:var(--coral-dim);}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="brand">
+      <div class="brand-mark">C</div>
+      <div>
+        <h1>Credit Wallet Ledger Simulator</h1>
+        <p>Enter top-ups and collection dates — the ledger, reminders and rate changes build themselves.</p>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <div class="toggle-group" id="modelToggle">
+        <button data-val="standard" class="active">Standard Prepaid</button>
+        <button data-val="inclusive">Credit Inclusive</button>
+      </div>
+      <button id="resetBtn">Reset</button>
+    </div>
+  </header>
+
+  <!-- Reference: purely informational, decoupled from the live simulation -->
+  <div class="card">
+    <div class="ref-head">
+      <div>
+        <h2 style="margin-bottom:0;">Plans</h2>
+        <p class="sub" style="margin-bottom:0;">Reference rates only — the toggle just previews either column, it doesn't change anything below.</p>
+      </div>
+      <div class="toggle-group" id="refTimelineToggle">
+        <button data-val="T1" class="active">T+1</button>
+        <button data-val="T0">T0</button>
+      </div>
+    </div>
+    <table class="ref" id="planTable"></table>
+  </div>
+
+  <!-- Settlement timeline: the real, live setting the ledger uses -->
+  <div class="card">
+    <h2>Settlement timeline</h2>
+    <p class="sub">This is what the ledger actually runs on. It's locked once set — schedule a switch to the opposite timeline for any date after the current one, and it applies from that date forward only.</p>
+    <div class="tl-current">
+      <span class="tl-current-label">Current</span>
+      <span class="tl-current-value" id="tlCurrentValue">T+1</span>
+      <span class="tl-current-since" id="tlCurrentSince"></span>
+    </div>
+    <div class="field-row" style="margin-top:14px;">
+      <div class="field">
+        <label>Effective from</label>
+        <input type="date" id="tlChangeDate">
+      </div>
+      <button class="btn secondary" id="addTlChange">Change timeline to T0</button>
+    </div>
+    <div class="alert-text" id="tlChangeMsg" style="display:none; margin-top:9px;"></div>
+  </div>
+
+  <!-- Top-ups + Collections, side by side -->
+  <div class="form-grid">
+    <div class="card compact">
+      <h2>Top-ups &amp; plan changes</h2>
+      <p class="sub">Upfront payments that convert into wallet credits on that date — plus bonus credits under Credit Inclusive.</p>
+      <div class="field-row">
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="topupDate">
+        </div>
+        <div class="field">
+          <label>Plan</label>
+          <select id="topupPlan"></select>
+        </div>
+        <button class="btn" id="addTopup">Add top-up</button>
+      </div>
+    </div>
+
+    <div class="card compact">
+      <h2>Scheduled collections</h2>
+      <p class="sub">Invoices due for presentation on a future date.</p>
+      <div class="field-row">
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="colDate">
+        </div>
+        <div class="field">
+          <label>Amount (₹)</label>
+          <input type="number" id="colAmount" min="0" placeholder="e.g. 2400000">
+        </div>
+        <button class="btn" id="addCol">Add collection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ledger -->
+  <div class="card">
+    <h2>Ledger</h2>
+    <p class="sub">Every row is generated automatically, in date order. Every day, the wallet balance is checked against the total charges expected for collections due in the next 5 days — one reminder per day if that falls short, showing the deficit, not one per collection.</p>
+    <div class="ledger-wrap">
+      <table class="ledger">
+        <thead id="ledgerHead"></thead>
+        <tbody id="ledgerBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- plan data ---------------- */
+  // Same six plan tiers and prepaid amounts under both models — what differs
+  // is the charge rate and whether bonus credits get added at top-up.
+  const PLAN_META = [
+    {key:'basic',   label:'Basic',         prepaid:0},
+    {key:'premium', label:'Premium',       prepaid:5000},
+    {key:'growth',  label:'Growth',        prepaid:20000},
+    {key:'ent1',    label:'Enterprise 1L', prepaid:100000},
+    {key:'ent3',    label:'Enterprise 3L', prepaid:300000},
+    {key:'ent6',    label:'Enterprise 6L', prepaid:600000},
+  ];
+  const BASE_RATE = { T1:0.01, T0:0.0125 };
+  // Standard Prepaid: each plan is charged at its own discounted rate.
+  const RATES = {
+    basic:  {T1:0.01,   T0:0.0125},
+    premium:{T1:0.01,   T0:0.0125},
+    growth: {T1:0.008,  T0:0.0105},
+    ent1:   {T1:0.005,  T0:0.0065},
+    ent3:   {T1:0.003,  T0:0.0045},
+    ent6:   {T1:0.0025, T0:0.0040},
+  };
+  // Credit Inclusive: every plan is charged at the same base rate (1% / 1.25%) —
+  // what the plan buys is bonus credits on top of the prepaid amount, not a
+  // discounted rate. RATES above is reused here only as the informational
+  // "Effective charge" column, never as the actual deduction rate.
+  const FREE_CREDITS = {
+    basic:  {T1:0,       T0:0},
+    premium:{T1:0,       T0:0},
+    growth: {T1:5000,    T0:3800},
+    ent1:   {T1:100000,  T0:92300},
+    ent3:   {T1:700000,  T0:830000},
+    ent6:   {T1:1800000, T0:1875000},
+  };
+  function planMeta(key){ return PLAN_META.find(p=>p.key===key); }
+  function fmt(n){ return Math.round(n).toLocaleString('en-IN'); }
+  function pct(n){ return (n*100).toFixed(2).replace(/\.?0+$/,'') + '%'; }
+
+  /* ---------------- date helpers ---------------- */
+  function parseDate(str){ return new Date(str+'T00:00:00'); }
+  function toInputVal(d){
+    // Use local calendar components, not toISOString() — that converts to UTC
+    // first, which silently shifts the date back a day for any positive UTC
+    // offset (e.g. IST, UTC+5:30) since local midnight falls on the previous
+    // UTC calendar day.
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  function addDays(d,n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+  function formatDate(d){ return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
+  function todayVal(){
+    const d = new Date(); d.setHours(0,0,0,0);
+    return toInputVal(d);
+  }
+
+  /* ---------------- state ---------------- */
+  function freshState(){
+    // The ledger always anchors to today's real date — fixed, not user-editable.
+    const anchor = todayVal();
+    return {
+      model: 'standard', // 'standard' | 'inclusive'
+      todayDate: anchor,
+      // id:0 is the seed timeline, pinned to the anchor date. It's always shown as
+      // "locked" — the only way to change it is scheduling a dated switch below.
+      timelineEvents: [{id:0, date:anchor, timeline:'T1'}],
+      topups:[],       // {id, date:'YYYY-MM-DD', planKey}
+      collections:[],  // {id, date:'YYYY-MM-DD', amount}
+      nextId:1,
+    };
+  }
+  let state = freshState();
+  // Purely local preview state for the Plans reference table — never touches
+  // `state`, never re-runs the ledger, just flips which column is shown.
+  let refTimeline = 'T1';
+
+  function uid(){ return state.nextId++; }
+  function seedTimelineEntry(){ return state.timelineEvents.find(e=>e.id===0); }
+  function latestTimelineEntry(){
+    const sorted = [...state.timelineEvents].sort((a,b)=> a.date.localeCompare(b.date) || a.id-b.id);
+    return sorted[sorted.length-1];
+  }
+  function timelineAsOf(date){
+    const sorted = [...state.timelineEvents].sort((a,b)=> a.date.localeCompare(b.date) || a.id-b.id);
+    let last = sorted[0];
+    for(const e of sorted){ if(e.date <= date) last = e; else break; }
+    return last.timeline;
+  }
+
+  /* ---------------- engine ---------------- */
+  function currentPlanKeyOf(tranches){ const t=tranches.find(tr=>tr.remaining>0.0001); return t? t.planKey:'basic'; }
+  // The rate always follows whichever settlement timeline is currently in effect —
+  // a plan's principal (wallet credits) is fixed at purchase, but its charge rate
+  // is looked up fresh against the active timeline, not frozen at top-up time.
+  // Under Credit Inclusive every plan shares the same base rate — only the
+  // credited amount differs — so the active tranche's plan doesn't matter there.
+  function currentRateOf(tranches,timeline){
+    if(state.model==='inclusive') return BASE_RATE[timeline];
+    const t=tranches.find(tr=>tr.remaining>0.0001);
+    return t? RATES[t.planKey][timeline] : BASE_RATE[timeline];
+  }
+  function walletBalanceOf(tranches){ return tranches.reduce((s,t)=>s+Math.max(0,t.remaining),0); }
+
+  // A tranche's own charge rate at a given timeline. Under Credit Inclusive
+  // every plan shares the base rate, so this collapses to BASE_RATE regardless
+  // of which plan the tranche belongs to.
+  function trancheRate(tranche, timeline){
+    return state.model==='inclusive' ? BASE_RATE[timeline] : RATES[tranche.planKey][timeline];
+  }
+
+  // How much collection value the wallet can gross-settle right now, correctly
+  // accounting for tranches at different rates — each tranche's own remaining
+  // balance can cover remaining/rate worth of collection value (the Free TPV
+  // formula), and total capacity is the sum across all tranches, not a single
+  // blended balance divided by one rate.
+  function totalTpvCapacity(tranches, timeline){
+    return tranches.reduce((sum,t)=> t.remaining>0.0001 ? sum + t.remaining/trancheRate(t,timeline) : sum, 0);
+  }
+
+  // Splits a collection's value across tranches FIFO: the oldest tranche's
+  // capacity is fully used (at its own rate) before touching the next one, so
+  // a collection spanning an old plan and a new upgrade is charged at each
+  // plan's own rate for the portion it actually funds — not one flat rate for
+  // the whole amount. This still runs once, at presentation time; nothing is
+  // revisited afterward.
+  function computeBlendedGrossCharge(tranches, timeline, collectionValue){
+    let remainingValue = collectionValue;
+    let totalCharge = 0;
+    const deductions = []; // {trancheId, amount, planKey, rate}
+    for(const t of tranches){
+      if(remainingValue<=1e-9) break;
+      if(t.remaining<=0.0001) continue;
+      const rate = trancheRate(t, timeline);
+      const capacity = t.remaining / rate;
+      if(capacity >= remainingValue - 1e-9){
+        const creditNeeded = remainingValue * rate;
+        totalCharge += creditNeeded;
+        deductions.push({trancheId:t.id, amount:creditNeeded, planKey:t.planKey, rate});
+        remainingValue = 0;
+      } else {
+        totalCharge += t.remaining;
+        deductions.push({trancheId:t.id, amount:t.remaining, planKey:t.planKey, rate});
+        remainingValue -= capacity;
+      }
+    }
+    return { charge: totalCharge, deductions };
+  }
+
+  function buildLedger(){
+    const todayD = parseDate(state.todayDate);
+
+    const events = [{date:todayD, type:'initial', order:-1, seq:-1, id:-1}];
+
+    // Dated timeline changes (excluding the seed) become their own ledger rows,
+    // and only affect rate calculations for events on or after their date.
+    state.timelineEvents.filter(e=>e.id!==0).forEach(e=>{
+      events.push({date:parseDate(e.date), type:'timelineChange', order:-0.5, seq:e.id, id:e.id, newTimeline:e.timeline});
+    });
+
+    // Top-ups and collections share the same same-day priority tier — which one
+    // comes first is decided by which was actually added first (seq), not by type.
+    state.topups.forEach(tu=> events.push({date:parseDate(tu.date), type:'topup', order:0, seq:tu.id, id:tu.id, planKey:tu.planKey}));
+
+    const byDate = {};
+    state.collections.forEach(c=>{ (byDate[c.date]=byDate[c.date]||[]).push(c); });
+    const dueDateTotals = []; // {date, total} — used for the rolling reminder windows below
+    Object.keys(byDate).forEach(key=>{
+      const group = byDate[key];
+      const total = group.reduce((s,c)=>s+c.amount,0);
+      const d = parseDate(key);
+      dueDateTotals.push({date:d, total});
+      // A batched collection's position among same-day events is set by the
+      // earliest of its underlying entries — i.e. whenever the user first
+      // added a collection for this date.
+      const earliestSeq = Math.min(...group.map(c=>c.id));
+      events.push({date:d, type:'collection', order:0, seq:earliestSeq, id:'col-'+key, amount:total, sourceIds: group.map(c=>c.id)});
+    });
+
+    // Reminders are a single rolling daily check — every day, sum whatever's
+    // due across the next 5 days and compare it to the wallet balance at that
+    // moment. One alert per day if short, no separate T-3/T-1 tiers.
+    const REMINDER_WINDOW_DAYS = 5;
+    if(dueDateTotals.length>0){
+      const maxDueDate = dueDateTotals.reduce((max,dd)=> dd.date>max?dd.date:max, dueDateTotals[0].date);
+      const lastCheckDay = addDays(maxDueDate, -1);
+      if(lastCheckDay >= todayD){
+        for(let d = new Date(todayD); d <= lastCheckDay; d = addDays(d,1)){
+          const windowAmount = dueDateTotals.reduce((sum, dd)=>{
+            const diffDays = Math.round((dd.date - d) / 86400000);
+            return (diffDays>=1 && diffDays<=REMINDER_WINDOW_DAYS) ? sum + dd.total : sum;
+          }, 0);
+          if(windowAmount>0){
+            events.push({date:new Date(d), type:'reminder', order:1, seq:0, id:`rem-${toInputVal(d)}`, windowAmount});
+          }
+        }
+      }
+    }
+
+    events.sort((a,b)=> a.date-b.date || a.order-b.order || a.seq-b.seq || (String(a.id)<String(b.id)?-1:1));
+
+    const tranches = [];
+    const rows = [];
+    let currentTimeline = seedTimelineEntry().timeline;
+
+    events.forEach(ev=>{
+      const before = walletBalanceOf(tranches);
+      const planNow = currentPlanKeyOf(tranches);
+
+      if(ev.type==='initial'){
+        const rateNow = currentRateOf(tranches, currentTimeline);
+        rows.push({
+          type:'initial', date:ev.date, event:`Initial state — merchant starts on Basic (${currentTimeline==='T1'?'T+1':'T0'})`,
+          plan:planMeta(planNow).label, rate:rateNow, before, amount:null, charge:null,
+          payout:null, after:before, mode:null, alert:null
+        });
+      } else if(ev.type==='timelineChange'){
+        currentTimeline = ev.newTimeline;
+        const rateNow = currentRateOf(tranches, currentTimeline);
+        rows.push({
+          type:'timelineChange', date:ev.date,
+          event:`Settlement timeline changed to ${currentTimeline==='T1'?'T+1':'T0'} — applies from this date forward only`,
+          plan:planMeta(planNow).label, rate:rateNow, before, amount:null, charge:null,
+          payout:null, after:before, mode:null, alert:null,
+          tlChangeId: ev.id
+        });
+      } else if(ev.type==='topup'){
+        const meta = planMeta(ev.planKey);
+        const activatesNow = before <= 0.0001;
+        // Bonus credits (if any) are granted based on the timeline in effect at
+        // the moment of top-up — a snapshot, same as the prepaid amount, so a
+        // later timeline change doesn't retroactively alter what was already granted.
+        const freeCredits = state.model==='inclusive' ? FREE_CREDITS[ev.planKey][currentTimeline] : 0;
+        const principal = meta.prepaid + freeCredits;
+        tranches.push({id:ev.id, planKey:ev.planKey, remaining:principal});
+        const after = walletBalanceOf(tranches);
+        const planAfter = planMeta(currentPlanKeyOf(tranches)).label;
+        const bonusNote = freeCredits>0 ? ` + ₹${fmt(freeCredits)} bonus credits` : '';
+        rows.push({
+          type:'topup', date:ev.date,
+          event:`Top-up — ${meta.label} (₹${fmt(meta.prepaid)}${bonusNote}) ${activatesNow ? 'activated' : 'queued behind existing credits'}`,
+          plan:planAfter, rate:currentRateOf(tranches,currentTimeline), before, amount:meta.prepaid,
+          freeCredits: state.model==='inclusive' ? freeCredits : null,
+          charge:null, payout:null, after, mode:null, alert:null,
+          topupId: ev.id
+        });
+      } else if(ev.type==='reminder'){
+        const rateNow = currentRateOf(tranches, currentTimeline);
+        // Reminders only make sense for a merchant actively holding a subscribed
+        // plan's credits — on Basic there's no wallet balance to protect, so
+        // no notification is sent (always net-settled at the base rate).
+        if(planNow !== 'basic'){
+          const needed = ev.windowAmount * rateNow;
+          const insufficient = before < needed;
+          if(insufficient){
+            const deficit = needed - before;
+            rows.push({
+              type:'reminder', date:ev.date,
+              event:`Top-up reminder — balance won't cover ₹${fmt(ev.windowAmount)} in collections due over the next 5 days`,
+              plan:planMeta(planNow).label, rate:rateNow, before, amount:needed,
+              charge:null, payout:null, after:before, mode:null,
+              alert: `Insufficient — top up ₹${fmt(deficit)} to cover the shortfall and keep the next 5 days' collections gross`
+            });
+          }
+        }
+      } else if(ev.type==='collection'){
+        const rateNow = currentRateOf(tranches, currentTimeline);
+        // Gross/net is decided on the wallet's true blended capacity — the sum
+        // of what each tranche can cover at its own rate — not wallet balance
+        // divided by a single flat rate, which understates capacity whenever
+        // tranches sit at different rates.
+        const capacity = totalTpvCapacity(tranches, currentTimeline);
+        const mode = capacity >= ev.amount - 1e-9 ? 'gross' : 'net';
+        let charge, payout, after, planLabel, spanNote = '';
+        if(mode==='gross'){
+          const blend = computeBlendedGrossCharge(tranches, currentTimeline, ev.amount);
+          charge = blend.charge;
+          blend.deductions.forEach(d=>{
+            const t = tranches.find(tr=>tr.id===d.trancheId);
+            t.remaining -= d.amount;
+          });
+          after = walletBalanceOf(tranches);
+          payout = ev.amount;
+          const distinctPlans = [...new Set(blend.deductions.map(d=>d.planKey))];
+          planLabel = distinctPlans.map(k=>planMeta(k).label).join(' + ');
+          // Only call out a "split at different rates" when the rates actually
+          // differ — under Credit Inclusive every plan shares the same base
+          // rate, so spanning two tranches there doesn't mean anything charge-
+          // wise, even though the plan label still correctly shows both.
+          const distinctRates = [...new Set(blend.deductions.map(d=>d.rate))];
+          if(distinctRates.length>1){
+            spanNote = ` — split across ${planLabel} balances at their own rates`;
+          }
+        } else {
+          charge = ev.amount * rateNow;
+          after = before;
+          payout = ev.amount - charge;
+          planLabel = planMeta(planNow).label;
+        }
+        rows.push({
+          type:'collection', date:ev.date,
+          event:`Collection due — settles ${mode==='gross'?'gross (charge deducted from wallet)'+spanNote:'net (charge deducted from settlement)'}`,
+          // For a single-tranche charge this is that tranche's own rate; for a
+          // blended charge it's the effective rate actually applied (charge ÷
+          // amount) — always accurate, never a single misleading flat number.
+          plan:planLabel, rate: ev.amount>0 ? charge/ev.amount : rateNow, before, amount:ev.amount,
+          charge, payout, after, mode,
+          // On Basic, net settlement is the expected default — not a shortfall — so no alert.
+          alert: (mode==='net' && planNow!=='basic') ? 'Insufficient balance — charge taken from settlement, wallet untouched' : null,
+          sourceIds: ev.sourceIds
+        });
+      }
+    });
+
+    return rows;
+  }
+
+  /* ---------------- rendering ---------------- */
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => document.querySelectorAll(sel);
+
+  // Purely informational — driven by the local refTimeline preview and the
+  // live model toggle (model genuinely changes the simulation, so this reads
+  // state.model; only the timeline half of this table stays a local preview).
+  function renderPlanTable(){
+    const t = $('#planTable');
+    const tl = refTimeline;
+    const tlLabel = tl==='T1' ? 'T+1' : 'T0';
+
+    if(state.model==='standard'){
+      const rows = PLAN_META.map(m=>{
+        const rate = RATES[m.key][tl];
+        const tpv = m.key==='basic' ? '—' : '₹'+fmt(m.prepaid / rate);
+        return `<tr>
+          <td>${m.label}</td>
+          <td>${m.prepaid? '₹'+fmt(m.prepaid) : '0'}</td>
+          <td>${pct(rate)}</td>
+          <td>${tpv}</td>
+        </tr>`;
+      }).join('');
+      t.innerHTML = `<thead><tr><th>Plan</th><th>Prepaid amount</th><th>Charges (${tlLabel})</th><th>Free TPV (${tlLabel})</th></tr></thead><tbody>${rows}</tbody>`;
+    } else {
+      const rows = PLAN_META.map(m=>{
+        const free = FREE_CREDITS[m.key][tl];
+        const effRate = RATES[m.key][tl];
+        // Free TPV is prepaid amount ÷ effective charge — not (prepaid+free)/base
+        // rate. Those two only coincide when the free-credit figure happens to be
+        // exact; the workbook's T0 bonus-credit numbers are rounded, so the two
+        // formulas diverge significantly for the larger plans.
+        const tpv = m.key==='basic' ? '—' : '₹'+fmt(m.prepaid / effRate);
+        return `<tr>
+          <td>${m.label}</td>
+          <td>${m.prepaid? '₹'+fmt(m.prepaid) : '0'}</td>
+          <td>${free? '₹'+fmt(free) : 'None'}</td>
+          <td>${pct(BASE_RATE[tl])}</td>
+          <td>${pct(effRate)}</td>
+          <td>${tpv}</td>
+        </tr>`;
+      }).join('');
+      t.innerHTML = `<thead><tr><th>Plan</th><th>Prepaid amount</th><th>Free credits (${tlLabel})</th><th>Charge</th><th>Effective charge</th><th>Free TPV (${tlLabel})</th></tr></thead><tbody>${rows}</tbody>`;
+    }
+  }
+
+  function renderRefToggle(){
+    $$('#refTimelineToggle button').forEach(b=> b.classList.toggle('active', b.dataset.val===refTimeline));
+  }
+
+  function renderModelToggle(){
+    $$('#modelToggle button').forEach(b=> b.classList.toggle('active', b.dataset.val===state.model));
+  }
+
+  // The live settlement timeline: locked at whatever the latest dated entry
+  // says, with the "change to..." button always offering the opposite value.
+  function renderTimelineBox(){
+    const latest = latestTimelineEntry();
+    $('#tlCurrentValue').textContent = latest.timeline==='T1' ? 'T+1' : 'T0';
+    $('#tlCurrentSince').textContent = 'since ' + formatDate(parseDate(latest.date));
+    const target = latest.timeline==='T1' ? 'T0' : 'T1';
+    $('#addTlChange').textContent = `Change timeline to ${target==='T1'?'T+1':'T0'}`;
+  }
+
+  function renderTopupPlanOptions(){
+    const sel = $('#topupPlan');
+    sel.innerHTML = PLAN_META.filter(m=>m.key!=='basic').map(m=>`<option value="${m.key}">${m.label} — ₹${fmt(m.prepaid)}</option>`).join('');
+  }
+
+  function renderLedger(){
+    const rows = buildLedger();
+    const inclusive = state.model==='inclusive';
+
+    const head = $('#ledgerHead');
+    head.innerHTML = `<tr>
+      <th>Date</th><th>Event</th><th>Active plan</th><th>Rate</th>
+      <th>Wallet balance (Pre-txn)</th><th>Paid credits</th>${inclusive ? '<th>Free credits</th>' : ''}<th>Charge</th>
+      <th>Payout</th><th>Wallet balance (Post-txn)</th><th>Mode</th><th>Alert</th><th></th>
+    </tr>`;
+
+    const body = $('#ledgerBody');
+    body.innerHTML = rows.map(r=>{
+      const modeCell = r.mode
+        ? `<span class="mode-pill ${r.mode}">${r.mode==='gross'?'Gross':'Net'}</span>`
+        : `<span class="dash">—</span>`;
+      const alertCell = r.alert
+        ? `<span class="alert-text">${r.alert}</span>`
+        : `<span class="dash">—</span>`;
+      const rowClass = r.type==='collection' ? `row-collection ${r.mode}` : `row-${r.type}`;
+      let actionCell = `<span class="dash">—</span>`;
+      if(r.type==='topup'){
+        actionCell = `<button class="row-del" data-kind="topup" data-id="${r.topupId}" title="Remove this top-up">✕</button>`;
+      } else if(r.type==='collection'){
+        actionCell = `<button class="row-del" data-kind="col" data-ids="${r.sourceIds.join(',')}" title="Remove this collection">✕</button>`;
+      } else if(r.type==='timelineChange'){
+        actionCell = `<button class="row-del" data-kind="tl" data-id="${r.tlChangeId}" title="Remove this timeline change">✕</button>`;
+      }
+      const freeCreditsCell = inclusive
+        ? `<td>${r.freeCredits!=null && r.freeCredits>0 ? '₹'+fmt(r.freeCredits) : '<span class="dash">—</span>'}</td>`
+        : '';
+      return `<tr class="${rowClass}">
+        <td>${formatDate(r.date)}</td>
+        <td class="event-cell">${r.event}</td>
+        <td>${r.plan}</td>
+        <td>${pct(r.rate)}</td>
+        <td>₹${fmt(r.before)}</td>
+        <td>${r.amount!==null ? '₹'+fmt(r.amount) : '<span class="dash">—</span>'}</td>
+        ${freeCreditsCell}
+        <td>${r.charge!==null ? '₹'+fmt(r.charge) : '<span class="dash">—</span>'}</td>
+        <td>${r.payout!==null ? '₹'+fmt(r.payout) : '<span class="dash">—</span>'}</td>
+        <td>₹${fmt(r.after)}</td>
+        <td>${modeCell}</td>
+        <td>${alertCell}</td>
+        <td>${actionCell}</td>
+      </tr>`;
+    }).join('');
+
+    body.querySelectorAll('.row-del').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        if(btn.dataset.kind==='topup'){
+          state.topups = state.topups.filter(t=>t.id!==Number(btn.dataset.id));
+        } else if(btn.dataset.kind==='col'){
+          const ids = btn.dataset.ids.split(',').map(Number);
+          state.collections = state.collections.filter(c=>!ids.includes(c.id));
+        } else if(btn.dataset.kind==='tl'){
+          state.timelineEvents = state.timelineEvents.filter(e=>e.id!==Number(btn.dataset.id));
+        }
+        render();
+      });
+    });
+  }
+
+  function render(){
+    renderModelToggle();
+    renderPlanTable();
+    renderTimelineBox();
+    renderLedger();
+  }
+
+  /* ---------------- events ---------------- */
+  $('#modelToggle').addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    if(b.dataset.val === state.model) return;
+    state.model = b.dataset.val;
+    render();
+  });
+
+  // The Plans reference timeline toggle is fully local — it never touches
+  // `state` or reruns the ledger; only the model toggle above genuinely
+  // changes the simulation.
+  $('#refTimelineToggle').addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    refTimeline = b.dataset.val;
+    renderRefToggle();
+    renderPlanTable();
+  });
+
+  $('#addTlChange').addEventListener('click', ()=>{
+    const date = $('#tlChangeDate').value;
+    const msg = $('#tlChangeMsg');
+    msg.style.display = 'none';
+
+    if(!date) return;
+
+    const latest = latestTimelineEntry();
+    const target = latest.timeline === 'T1' ? 'T0' : 'T1';
+
+    if(date <= latest.date){
+      msg.textContent = `Pick a date after ${formatDate(parseDate(latest.date))} — the current timeline (${latest.timeline==='T1'?'T+1':'T0'}) started then.`;
+      msg.style.display = 'block';
+      return;
+    }
+
+    state.timelineEvents.push({id:uid(), date, timeline:target});
+    $('#tlChangeDate').value='';
+    render();
+  });
+
+  $('#addTopup').addEventListener('click', ()=>{
+    const date = $('#topupDate').value;
+    const plan = $('#topupPlan').value;
+    if(!date || !plan) return;
+    state.topups.push({id:uid(), date, planKey:plan});
+    $('#topupDate').value='';
+    render();
+  });
+
+  $('#addCol').addEventListener('click', ()=>{
+    const date = $('#colDate').value;
+    const amount = parseFloat($('#colAmount').value);
+    if(!date || !amount || amount<=0) return;
+    state.collections.push({id:uid(), date, amount});
+    $('#colDate').value=''; $('#colAmount').value='';
+    render();
+  });
+
+  $('#resetBtn').addEventListener('click', ()=>{
+    state = freshState();
+    render();
+  });
+
+  /* ---------------- init ---------------- */
+  renderTopupPlanOptions();
+  renderRefToggle();
+  render();
+})();
+</script>
+</body>
+</html>
