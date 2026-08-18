@@ -29,6 +29,41 @@
   ::selection{background:var(--mint-dim); color:var(--mint);}
 
   .app{max-width:1360px;margin:0 auto;padding:26px 22px 70px;}
+  .app.with-guide{max-width:1620px;}
+
+  .layout{display:grid; grid-template-columns:1fr 260px; gap:24px; align-items:start;}
+  .layout.guide-hidden{grid-template-columns:1fr;}
+  .main-col{min-width:0;}
+
+  .guide{
+    position:sticky; top:22px; background:var(--panel); border:1px solid var(--border);
+    border-radius:var(--radius); padding:18px 18px 16px; box-shadow:0 1px 2px rgba(43,40,35,0.03);
+  }
+  .guide-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;}
+  .guide h2{font-family:'Fraunces',serif; font-size:15px; font-weight:600; margin:0;}
+  .guide-close{background:none; border:none; color:var(--muted-2); cursor:pointer; font-size:15px; padding:2px 5px; border-radius:5px; line-height:1;}
+  .guide-close:hover{color:var(--coral); background:var(--coral-dim);}
+  .guide-sub{font-size:12px; color:var(--muted); margin:2px 0 14px; line-height:1.5;}
+  .guide-steps{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:13px;}
+  .guide-step{display:flex; gap:10px; align-items:flex-start;}
+  .guide-num{
+    flex:none; width:20px; height:20px; border-radius:50%; background:var(--mint-dim); color:var(--mint);
+    font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; display:flex; align-items:center;
+    justify-content:center; margin-top:1px;
+  }
+  .guide-step-text{font-size:12.5px; line-height:1.5; color:var(--text);}
+  .guide-step-text b{font-weight:600;}
+  .guide-reopen{
+    display:none; background:var(--panel); color:var(--muted); border:1px solid var(--border); border-radius:7px;
+    padding:9px 13px; font-size:12.5px; font-weight:600; cursor:pointer; align-items:center; gap:7px;
+  }
+  .guide-reopen.visible{display:inline-flex;}
+  .guide-reopen:hover{border-color:var(--mint); color:var(--mint);}
+
+  @media(max-width:980px){
+    .layout{grid-template-columns:1fr;}
+    .guide{position:static;}
+  }
 
   header.top{display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:20px; border-bottom:1px solid var(--border); margin-bottom:24px; flex-wrap:wrap;}
   .brand{display:flex; align-items:center; gap:13px;}
@@ -101,7 +136,7 @@
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app with-guide">
 
   <header class="top">
     <div class="brand">
@@ -112,6 +147,7 @@
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <button class="guide-reopen" id="guideReopen">Show guide</button>
       <div class="toggle-group" id="modelToggle">
         <button data-val="standard" class="active">Standard Prepaid</button>
         <button data-val="inclusive">Credit Inclusive</button>
@@ -119,6 +155,9 @@
       <button id="resetBtn">Reset</button>
     </div>
   </header>
+
+  <div class="layout" id="layoutGrid">
+  <div class="main-col">
 
   <!-- Reference: purely informational, decoupled from the live simulation -->
   <div class="card">
@@ -200,6 +239,40 @@
       </table>
     </div>
   </div>
+
+  </div>
+
+  <aside class="guide" id="guidePanel">
+    <div class="guide-head">
+      <h2>Quick guide</h2>
+      <button class="guide-close" id="guideClose" title="Hide guide">✕</button>
+    </div>
+    <p class="guide-sub">Step 1 is the internal question this simulator helps answer. Steps 2–5 mirror what a merchant actually does.</p>
+    <ol class="guide-steps">
+      <li class="guide-step">
+        <span class="guide-num">1</span>
+        <span class="guide-step-text">A merchant never sees this choice — it's what <b>we're</b> deciding: whether Standard Prepaid or Credit Inclusive is the better model for Collect. Pick one at the top to simulate under it; the Plans table shows what each tier costs and charges.</span>
+      </li>
+      <li class="guide-step">
+        <span class="guide-num">2</span>
+        <span class="guide-step-text">They also choose a <b>settlement timeline</b> — T+1 (next working day) or T0 (instant, at a slightly higher rate). Set it here; it locks in, just like a live plan.</span>
+      </li>
+      <li class="guide-step">
+        <span class="guide-num">3</span>
+        <span class="guide-step-text">When a merchant <b>pays a plan's upfront cost</b>, it lands in their wallet as credits. Add a top-up with a plan and date to simulate that payment.</span>
+      </li>
+      <li class="guide-step">
+        <span class="guide-num">4</span>
+        <span class="guide-step-text">Every day, a merchant has <b>customer collections due for presentation</b> against their wallet. Add one with an amount and due date to simulate that.</span>
+      </li>
+      <li class="guide-step">
+        <span class="guide-num">5</span>
+        <span class="guide-step-text">From here it plays out as it would for a real merchant — <b>top-up reminders</b> before a shortfall, each collection <b>settling gross or net</b>, and rates shifting on plan changes — all in the ledger below.</span>
+      </li>
+    </ol>
+  </aside>
+
+</div>
 
 </div>
 
@@ -731,6 +804,17 @@
   $('#resetBtn').addEventListener('click', ()=>{
     state = freshState();
     render();
+  });
+
+  $('#guideClose').addEventListener('click', ()=>{
+    $('#guidePanel').style.display = 'none';
+    $('#layoutGrid').classList.add('guide-hidden');
+    $('#guideReopen').classList.add('visible');
+  });
+  $('#guideReopen').addEventListener('click', ()=>{
+    $('#guidePanel').style.display = '';
+    $('#layoutGrid').classList.remove('guide-hidden');
+    $('#guideReopen').classList.remove('visible');
   });
 
   /* ---------------- init ---------------- */
