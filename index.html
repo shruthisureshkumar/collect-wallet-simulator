@@ -219,26 +219,37 @@
     {key:'ent6',    label:'Enterprise 6L', prepaid:600000},
   ];
   const BASE_RATE = { T1:0.01, T0:0.0125 };
-  // Standard Prepaid: each plan is charged at its own discounted rate.
+  // Standard Prepaid: each plan is charged at its own discounted rate. Also
+  // reused as Credit Inclusive's "Net charge" / effective-rate reference,
+  // since both models land on the same effective rate by design.
   const RATES = {
     basic:  {T1:0.01,   T0:0.0125},
     premium:{T1:0.01,   T0:0.0125},
     growth: {T1:0.008,  T0:0.0105},
     ent1:   {T1:0.005,  T0:0.0065},
     ent3:   {T1:0.003,  T0:0.0045},
-    ent6:   {T1:0.0025, T0:0.0040},
+    ent6:   {T1:0.0024, T0:0.0039},
   };
-  // Credit Inclusive: every plan is charged at the same base rate (1% / 1.25%) —
-  // what the plan buys is bonus credits on top of the prepaid amount, not a
-  // discounted rate. RATES above is reused here only as the informational
-  // "Effective charge" column, never as the actual deduction rate.
+  // Credit Inclusive: the ACTUAL deduction rate charged per transaction. At
+  // T+1 it's a flat 1% for every plan. At T0 it isn't flat — the workbook
+  // adds a 25bps instant-settlement surcharge for Basic/Premium/Growth
+  // (1% -> 1.25%) but only a 15bps surcharge for Enterprise tiers (1% -> 1.15%).
+  const INCLUSIVE_RATE = {
+    basic:  {T1:0.01, T0:0.0125},
+    premium:{T1:0.01, T0:0.0125},
+    growth: {T1:0.01, T0:0.0125},
+    ent1:   {T1:0.01, T0:0.0115},
+    ent3:   {T1:0.01, T0:0.0115},
+    ent6:   {T1:0.01, T0:0.0115},
+  };
+  // Bonus credits granted at top-up, on top of the prepaid amount.
   const FREE_CREDITS = {
     basic:  {T1:0,       T0:0},
     premium:{T1:0,       T0:0},
-    growth: {T1:5000,    T0:3800},
-    ent1:   {T1:100000,  T0:92300},
-    ent3:   {T1:700000,  T0:830000},
-    ent6:   {T1:1800000, T0:1875000},
+    growth: {T1:5000,    T0:3810},
+    ent1:   {T1:100000,  T0:76923},
+    ent3:   {T1:700000,  T0:466667},
+    ent6:   {T1:1900000, T0:1169231},
   };
   function planMeta(key){ return PLAN_META.find(p=>p.key===key); }
   function fmt(n){ return Math.round(n).toLocaleString('en-IN'); }
@@ -301,20 +312,18 @@
   // The rate always follows whichever settlement timeline is currently in effect —
   // a plan's principal (wallet credits) is fixed at purchase, but its charge rate
   // is looked up fresh against the active timeline, not frozen at top-up time.
-  // Under Credit Inclusive every plan shares the same base rate — only the
-  // credited amount differs — so the active tranche's plan doesn't matter there.
+  // Under Credit Inclusive the deduction rate still varies by plan at T0 (see
+  // INCLUSIVE_RATE), it just isn't a discount the way Standard Prepaid's is.
   function currentRateOf(tranches,timeline){
-    if(state.model==='inclusive') return BASE_RATE[timeline];
     const t=tranches.find(tr=>tr.remaining>0.0001);
-    return t? RATES[t.planKey][timeline] : BASE_RATE[timeline];
+    if(!t) return BASE_RATE[timeline]; // no active plan -> Basic, same rate either model
+    return state.model==='inclusive' ? INCLUSIVE_RATE[t.planKey][timeline] : RATES[t.planKey][timeline];
   }
   function walletBalanceOf(tranches){ return tranches.reduce((s,t)=>s+Math.max(0,t.remaining),0); }
 
-  // A tranche's own charge rate at a given timeline. Under Credit Inclusive
-  // every plan shares the base rate, so this collapses to BASE_RATE regardless
-  // of which plan the tranche belongs to.
+  // A tranche's own charge rate at a given timeline.
   function trancheRate(tranche, timeline){
-    return state.model==='inclusive' ? BASE_RATE[timeline] : RATES[tranche.planKey][timeline];
+    return state.model==='inclusive' ? INCLUSIVE_RATE[tranche.planKey][timeline] : RATES[tranche.planKey][timeline];
   }
 
   // How much collection value the wallet can gross-settle right now, correctly
@@ -550,22 +559,22 @@
     } else {
       const rows = PLAN_META.map(m=>{
         const free = FREE_CREDITS[m.key][tl];
+        const txnRate = INCLUSIVE_RATE[m.key][tl];
         const effRate = RATES[m.key][tl];
-        // Free TPV is prepaid amount ÷ effective charge — not (prepaid+free)/base
-        // rate. Those two only coincide when the free-credit figure happens to be
-        // exact; the workbook's T0 bonus-credit numbers are rounded, so the two
-        // formulas diverge significantly for the larger plans.
+        // Free TPV is prepaid amount ÷ effective (net) charge — the true
+        // deduction rate (txnRate) varies by tier at T0, but the effective/net
+        // rate is what determines how far the wallet actually stretches.
         const tpv = m.key==='basic' ? '—' : '₹'+fmt(m.prepaid / effRate);
         return `<tr>
           <td>${m.label}</td>
           <td>${m.prepaid? '₹'+fmt(m.prepaid) : '0'}</td>
           <td>${free? '₹'+fmt(free) : 'None'}</td>
-          <td>${pct(BASE_RATE[tl])}</td>
+          <td>${pct(txnRate)}</td>
           <td>${pct(effRate)}</td>
           <td>${tpv}</td>
         </tr>`;
       }).join('');
-      t.innerHTML = `<thead><tr><th>Plan</th><th>Prepaid amount</th><th>Free credits (${tlLabel})</th><th>Charge</th><th>Effective charge</th><th>Free TPV (${tlLabel})</th></tr></thead><tbody>${rows}</tbody>`;
+      t.innerHTML = `<thead><tr><th>Plan</th><th>Prepaid amount</th><th>Free credits (${tlLabel})</th><th>Charge</th><th>Effective (net) charge</th><th>Free TPV (${tlLabel})</th></tr></thead><tbody>${rows}</tbody>`;
     }
   }
 
